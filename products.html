@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>商品列表 - 校园二手交易平台</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <!-- 导航栏 -->
+    <nav class="navbar">
+        <div class="logo">📚 校园二手交易</div>
+        <div class="nav-links">
+            <a href="index.html">首页</a>
+            <a href="products.html" class="active">商品列表</a>
+            <a href="publish.html">发布商品</a>
+            <a href="login.html" id="login-btn">登录</a>
+            <a href="register.html" id="register-btn">注册</a>
+            <div class="user-menu" id="user-menu" style="display: none;">
+                <span id="username"></span>
+                <div class="dropdown">
+                    <a href="profile.html">个人中心</a>
+                    <a href="javascript:void(0)" onclick="logout()">退出登录</a>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- 商品列表 -->
+    <section class="products-container">
+        <div class="products-header">
+            <h2>商品列表</h2>
+            <div class="search-box">
+                <input type="text" id="search-input" placeholder="搜索商品...">
+                <button class="btn-primary" onclick="searchProducts()">搜索</button>
+            </div>
+        </div>
+        
+        <div class="filter-section">
+            <div class="filter-group">
+                <label>分类:</label>
+                <select onchange="filterProducts()">
+                    <option value="all">全部分类</option>
+                    <option value="books">图书教材</option>
+                    <option value="electronics">电子数码</option>
+                    <option value="clothing">服装鞋包</option>
+                    <option value="daily">生活用品</option>
+                    <option value="sports">运动娱乐</option>
+                    <option value="other">其他物品</option>
+                </select>
+            </div>
+            <div class="filter-group">
+                <label>价格排序:</label>
+                <select onchange="filterProducts()">
+                    <option value="default">默认排序</option>
+                    <option value="price_asc">价格从低到高</option>
+                    <option value="price_desc">价格从高到低</option>
+                    <option value="newest">最新发布</option>
+                </select>
+            </div>
+        </div>
+        
+        <div class="product-grid">
+        </div>
+        
+        <!-- 分页 -->
+        <div class="pagination">
+        </div>
+    </section>
+
+    <!-- 页脚 -->
+    <footer class="footer">
+        <div class="footer-bottom">
+            <p>&copy; 2026 校园二手交易平台. 保留所有权利.</p>
+        </div>
+    </footer>
+
+    <script src="script.js"></script>
+</body>
+</html>
