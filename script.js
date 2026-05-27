@@ -87,15 +87,24 @@ function checkLoginStatus() {
     const registerBtn = document.getElementById('register-btn');
     const userMenu = document.getElementById('user-menu');
     const username = document.getElementById('username');
+    const profileUsername = document.getElementById('profile-username');
+    const profileEmail = document.getElementById('profile-email');
     
     if (user) {
+        const userObj = JSON.parse(user);
         // 用户已登录
         if (loginBtn) loginBtn.style.display = 'none';
         if (registerBtn) registerBtn.style.display = 'none';
         if (userMenu) userMenu.style.display = 'block';
         if (username) {
-            const userObj = JSON.parse(user);
             username.textContent = userObj.username;
+        }
+        // 更新个人中心页面的用户名和邮箱
+        if (profileUsername) {
+            profileUsername.textContent = userObj.username;
+        }
+        if (profileEmail && userObj.email) {
+            profileEmail.textContent = '邮箱: ' + userObj.email;
         }
     } else {
         // 用户未登录
@@ -137,6 +146,12 @@ const products = [
 let filteredProducts = [...products];
 let currentPage = 1;
 const itemsPerPage = 8;
+
+// 从URL获取分类参数
+function getCategoryFromUrl() {
+    const urlParams = new URLSearchParams(window.location.search);
+    return urlParams.get('category');
+}
 
 // 商品列表页面筛选
 function filterProducts() {
@@ -303,10 +318,17 @@ function loadProductDetail() {
         const titleEl = document.querySelector('.product-detail-header h1');
         const priceEl = document.querySelector('.product-detail-price');
         const iconEl = document.querySelector('.main-image');
+        const metaElements = document.querySelectorAll('.product-detail-meta span');
         
         if (titleEl) titleEl.textContent = productObj.title;
         if (priceEl) priceEl.textContent = '¥' + productObj.price;
         if (iconEl) iconEl.textContent = productObj.icon;
+        
+        // 更新元信息
+        if (metaElements.length >= 2) {
+            metaElements[0].textContent = '发布时间: ' + productObj.date;
+            metaElements[1].textContent = '交易地点: ' + productObj.location;
+        }
         
         // 更新标题
         document.title = productObj.title + ' - 校园二手交易平台';
@@ -344,8 +366,20 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // 初始化商品列表
     if (document.querySelector('.product-grid')) {
-        renderProducts();
-        updatePagination();
+        // 检查URL是否有分类参数
+        const urlCategory = getCategoryFromUrl();
+        if (urlCategory) {
+            // 设置分类选择器的值
+            const categorySelect = document.querySelector('.filter-group select:first-of-type');
+            if (categorySelect) {
+                categorySelect.value = urlCategory;
+            }
+            // 执行筛选
+            filterProducts();
+        } else {
+            renderProducts();
+            updatePagination();
+        }
     }
     
     // 注册表单验证
@@ -381,21 +415,26 @@ document.addEventListener('DOMContentLoaded', function() {
         publishForm.addEventListener('submit', handlePublish);
     }
     
-    // 商品卡片点击事件
-    const productCards = document.querySelectorAll('.product-card');
-    productCards.forEach(card => {
-        card.addEventListener('click', function() {
-            // 跳转到商品详情页
-            window.location.href = 'product-detail.html';
-        });
+    // 首页静态商品卡片点击事件
+    const staticProductCards = document.querySelectorAll('.product-card');
+    staticProductCards.forEach(card => {
+        // 只有未绑定onclick的卡片才添加点击事件（避免与动态生成的卡片冲突）
+        if (!card.onclick) {
+            const title = card.querySelector('h3').textContent;
+            const product = products.find(p => p.title === title);
+            if (product) {
+                card.addEventListener('click', () => showProductDetail(product.id));
+            }
+        }
     });
     
     // 分类卡片点击事件
     const categoryCards = document.querySelectorAll('.category-card');
     categoryCards.forEach(card => {
         card.addEventListener('click', function() {
-            // 跳转到商品列表页并过滤
-            window.location.href = 'products.html';
+            // 获取分类参数并跳转到商品列表页
+            const category = card.dataset.category;
+            window.location.href = `products.html?category=${category}`;
         });
     });
     
