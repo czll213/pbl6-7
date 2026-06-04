@@ -37,6 +37,25 @@ function handleRegister(event) {
         return;
     }
     
+    // 验证用户名长度
+    if (username.length < 3 || username.length > 20) {
+        showMessage('用户名长度需要在3-20个字符之间', 'error');
+        return;
+    }
+    
+    // 验证邮箱格式
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+        showMessage('请输入有效的邮箱地址', 'error');
+        return;
+    }
+    
+    // 验证密码强度
+    if (password.length < 6) {
+        showMessage('密码长度至少需要6个字符', 'error');
+        return;
+    }
+    
     if (password !== confirmPassword) {
         showMessage('两次输入的密码不一致', 'error');
         return;
@@ -157,6 +176,7 @@ function getCategoryFromUrl() {
 function filterProducts() {
     const categorySelect = document.querySelector('.filter-group select:first-of-type');
     const sortSelect = document.querySelector('.filter-group select:last-of-type');
+    const searchTerm = document.getElementById('search-input') ? document.getElementById('search-input').value.toLowerCase().trim() : '';
     
     const category = categorySelect ? categorySelect.value : 'all';
     const sortType = sortSelect ? sortSelect.value : 'default';
@@ -167,6 +187,14 @@ function filterProducts() {
     // 按分类筛选
     if (category !== 'all') {
         tempProducts = tempProducts.filter(product => product.category === category);
+    }
+    
+    // 按搜索关键词筛选
+    if (searchTerm !== '') {
+        tempProducts = tempProducts.filter(product => 
+            product.title.toLowerCase().includes(searchTerm) ||
+            product.location.toLowerCase().includes(searchTerm)
+        );
     }
     
     // 按价格排序
@@ -185,25 +213,24 @@ function filterProducts() {
     currentPage = 1;
     renderProducts();
     updatePagination();
+    
+    // 更新商品数量显示
+    updateProductCount();
 }
 
 // 搜索商品
 function searchProducts() {
-    const searchTerm = document.getElementById('search-input').value.toLowerCase().trim();
-    
-    if (searchTerm === '') {
-        filteredProducts = [...products];
-    } else {
-        filteredProducts = products.filter(product => 
-            product.title.toLowerCase().includes(searchTerm) ||
-            product.location.toLowerCase().includes(searchTerm)
-        );
+    // 直接调用筛选函数，这样筛选和搜索会一起生效
+    filterProducts();
+}
+
+// 更新商品数量显示
+function updateProductCount() {
+    const productCount = document.querySelector('.products-header h2');
+    if (productCount) {
+        const count = filteredProducts.length;
+        productCount.textContent = `商品列表 (${count}件商品)`;
     }
-    
-    // 重置页码为第一页
-    currentPage = 1;
-    renderProducts();
-    updatePagination();
 }
 
 // 渲染商品列表
@@ -332,7 +359,132 @@ function loadProductDetail() {
         
         // 更新标题
         document.title = productObj.title + ' - 校园二手交易平台';
+        
+        // 加载相关推荐
+        loadRelatedProducts(productObj.category, productObj.id);
+        
+        // 初始化收藏按钮状态
+        initFavoriteButton(productObj.id);
+        
+        // 初始化联系卖家按钮
+        initContactButton();
+        
+        // 初始化分享按钮
+        initShareButton(productObj.title);
     }
+}
+
+// 初始化联系卖家按钮
+function initContactButton() {
+    const contactBtn = document.querySelector('.product-detail-actions .btn-primary');
+    if (contactBtn && contactBtn.textContent.includes('联系')) {
+        contactBtn.onclick = () => {
+            const user = localStorage.getItem('user');
+            if (!user) {
+                showMessage('请先登录后再联系卖家', 'error');
+                setTimeout(() => {
+                    window.location.href = 'login.html';
+                }, 1500);
+            } else {
+                showMessage('正在连接卖家...', 'success');
+            }
+        };
+    }
+}
+
+// 初始化分享按钮
+function initShareButton(title) {
+    const shareBtn = document.querySelectorAll('.product-detail-actions .btn-secondary');
+    shareBtn.forEach(btn => {
+        if (btn.textContent.includes('分享')) {
+            btn.onclick = () => {
+                const url = window.location.href;
+                if (navigator.clipboard) {
+                    navigator.clipboard.writeText(url).then(() => {
+                        showMessage('链接已复制到剪贴板', 'success');
+                    }).catch(() => {
+                        showMessage('复制失败，请手动复制', 'error');
+                    });
+                } else {
+                    showMessage('浏览器不支持复制功能', 'error');
+                }
+            };
+        }
+    });
+}
+
+// 初始化收藏按钮
+function initFavoriteButton(productId) {
+    const favoriteBtn = document.querySelector('.product-detail-actions .btn-secondary');
+    if (favoriteBtn && favoriteBtn.textContent.includes('收藏')) {
+        const favorites = JSON.parse(localStorage.getItem('favorites') || '[]');
+        const isFavorited = favorites.includes(productId);
+        
+        if (isFavorited) {
+            favoriteBtn.textContent = '已收藏';
+            favoriteBtn.onclick = () => toggleFavorite(productId, false);
+        } else {
+            favoriteBtn.textContent = '收藏商品';
+            favoriteBtn.onclick = () => toggleFavorite(productId, true);
+        }
+    }
+}
+
+// 切换收藏状态
+function toggleFavorite(productId, add) {
+    let favorites = JSON.parse(localStorage.getItem('favorites') || '[]');
+    
+    if (add) {
+        if (!favorites.includes(productId)) {
+            favorites.push(productId);
+            localStorage.setItem('favorites', JSON.stringify(favorites));
+            showMessage('已添加到收藏', 'success');
+        }
+    } else {
+        favorites = favorites.filter(id => id !== productId);
+        localStorage.setItem('favorites', JSON.stringify(favorites));
+        showMessage('已取消收藏', 'success');
+    }
+    
+    // 更新按钮状态
+    const favoriteBtn = document.querySelector('.product-detail-actions .btn-secondary');
+    if (favoriteBtn && favoriteBtn.textContent.includes('收藏')) {
+        if (add) {
+            favoriteBtn.textContent = '已收藏';
+            favoriteBtn.onclick = () => toggleFavorite(productId, false);
+        } else {
+            favoriteBtn.textContent = '收藏商品';
+            favoriteBtn.onclick = () => toggleFavorite(productId, true);
+        }
+    }
+}
+
+// 加载相关推荐
+function loadRelatedProducts(category, currentId) {
+    const relatedGrid = document.querySelectorAll('.hot-products .product-grid')[1];
+    if (!relatedGrid) return;
+    
+    // 查找同类商品
+    const relatedProducts = products
+        .filter(p => p.category === category && p.id !== currentId)
+        .slice(0, 4);
+    
+    // 清空现有推荐
+    relatedGrid.innerHTML = '';
+    
+    // 添加相关商品
+    relatedProducts.forEach(product => {
+        const productCard = document.createElement('div');
+        productCard.className = 'product-card';
+        productCard.onclick = () => showProductDetail(product.id);
+        productCard.innerHTML = `
+            <div class="product-img">${product.icon}</div>
+            <h3>${product.title}</h3>
+            <p class="price">¥${product.price}</p>
+            <p class="location">${product.location}</p>
+        `;
+        relatedGrid.appendChild(productCard);
+    });
 }
 
 // 发布商品处理
@@ -352,11 +504,56 @@ function handlePublish(event) {
         return;
     }
     
-    // 模拟发布
+    // 检查是否登录
+    const user = localStorage.getItem('user');
+    if (!user) {
+        showMessage('请先登录后再发布商品', 'error');
+        setTimeout(() => {
+            window.location.href = 'login.html';
+        }, 1500);
+        return;
+    }
+    
+    const userObj = JSON.parse(user);
+    
+    // 创建新商品
+    const newProduct = {
+        id: products.length + 1,
+        title: title,
+        price: parseFloat(price),
+        category: category,
+        location: location,
+        icon: getCategoryIcon(category),
+        date: new Date().toISOString().split('T')[0],
+        description: description,
+        seller: userObj.username
+    };
+    
+    // 保存到本地存储
+    const myProducts = JSON.parse(localStorage.getItem('myProducts') || '[]');
+    myProducts.push(newProduct);
+    localStorage.setItem('myProducts', JSON.stringify(myProducts));
+    
+    // 添加到全局商品数组
+    products.push(newProduct);
+    
     showMessage('商品发布成功！', 'success');
     
     // 清空表单
     document.getElementById('publish-form').reset();
+}
+
+// 获取分类图标
+function getCategoryIcon(category) {
+    const icons = {
+        'books': '📚',
+        'electronics': '💻',
+        'clothing': '👕',
+        'daily': '🏠',
+        'sports': '🏀',
+        'other': '📱'
+    };
+    return icons[category] || '📱';
 }
 
 // 页面加载完成后执行
@@ -379,6 +576,7 @@ document.addEventListener('DOMContentLoaded', function() {
         } else {
             renderProducts();
             updatePagination();
+            updateProductCount();
         }
     }
     
@@ -464,6 +662,7 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // 个人中心标签切换
     const profileTabs = document.querySelectorAll('.profile-tab');
+    const profileContent = document.querySelector('.profile-content');
     profileTabs.forEach(tab => {
         tab.addEventListener('click', function() {
             // 移除所有标签的active类
@@ -471,7 +670,120 @@ document.addEventListener('DOMContentLoaded', function() {
             // 添加当前标签的active类
             this.classList.add('active');
             
-            // 这里可以添加内容切换逻辑
+            // 根据标签切换内容
+            const tabName = this.textContent;
+            if (tabName === '我的发布') {
+                loadMyProducts();
+            } else if (tabName === '我的收藏') {
+                loadMyFavorites();
+            } else if (tabName === '个人信息') {
+                loadProfileInfo();
+            } else if (tabName === '设置') {
+                loadSettings();
+            }
         });
     });
+    
+    // 初始化加载我的发布
+    if (document.querySelector('.profile-container')) {
+        loadMyProducts();
+    }
 });
+
+// 加载我的发布
+function loadMyProducts() {
+    const profileContent = document.querySelector('.profile-content');
+    if (!profileContent) return;
+    
+    const myProducts = JSON.parse(localStorage.getItem('myProducts') || '[]');
+    const user = localStorage.getItem('user');
+    const userObj = user ? JSON.parse(user) : null;
+    
+    const userProducts = myProducts.filter(p => p.seller === userObj?.username);
+    
+    if (userProducts.length === 0) {
+        profileContent.innerHTML = `
+            <h3>我的发布</h3>
+            <p style="text-align: center; padding: 40px; color: #666;">您还没有发布任何商品</p>
+        `;
+        return;
+    }
+    
+    let html = '<h3>我的发布</h3><div class="product-grid">';
+    userProducts.forEach(product => {
+        html += `
+            <div class="product-card" onclick="showProductDetail(${product.id})">
+                <div class="product-img">${product.icon}</div>
+                <h3>${product.title}</h3>
+                <p class="price">¥${product.price}</p>
+                <p class="location">${product.location}</p>
+            </div>
+        `;
+    });
+    html += '</div>';
+    profileContent.innerHTML = html;
+}
+
+// 加载我的收藏
+function loadMyFavorites() {
+    const profileContent = document.querySelector('.profile-content');
+    if (!profileContent) return;
+    
+    const favorites = JSON.parse(localStorage.getItem('favorites') || '[]');
+    
+    if (favorites.length === 0) {
+        profileContent.innerHTML = `
+            <h3>我的收藏</h3>
+            <p style="text-align: center; padding: 40px; color: #666;">您还没有收藏任何商品</p>
+        `;
+        return;
+    }
+    
+    const favoriteProducts = products.filter(p => favorites.includes(p.id));
+    
+    let html = '<h3>我的收藏</h3><div class="product-grid">';
+    favoriteProducts.forEach(product => {
+        html += `
+            <div class="product-card" onclick="showProductDetail(${product.id})">
+                <div class="product-img">${product.icon}</div>
+                <h3>${product.title}</h3>
+                <p class="price">¥${product.price}</p>
+                <p class="location">${product.location}</p>
+            </div>
+        `;
+    });
+    html += '</div>';
+    profileContent.innerHTML = html;
+}
+
+// 加载个人信息
+function loadProfileInfo() {
+    const profileContent = document.querySelector('.profile-content');
+    if (!profileContent) return;
+    
+    const user = localStorage.getItem('user');
+    const userObj = user ? JSON.parse(user) : null;
+    
+    profileContent.innerHTML = `
+        <h3>个人信息</h3>
+        <div style="padding: 20px;">
+            <p><strong>用户名:</strong> ${userObj?.username || '未登录'}</p>
+            <p><strong>邮箱:</strong> ${userObj?.email || '未设置'}</p>
+            <p><strong>注册时间:</strong> ${new Date().toLocaleDateString()}</p>
+        </div>
+    `;
+}
+
+// 加载设置页面
+function loadSettings() {
+    const profileContent = document.querySelector('.profile-content');
+    if (!profileContent) return;
+    
+    profileContent.innerHTML = `
+        <h3>设置</h3>
+        <div style="padding: 20px;">
+            <p><strong>账号设置</strong></p>
+            <button class="btn-primary" onclick="logout()" style="margin-top: 10px;">退出登录</button>
+        </div>
+    `;
+}
